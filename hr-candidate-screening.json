@@ -1,0 +1,399 @@
+{
+  "name": "HR Candidate Screening",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        -160,
+        -960
+      ],
+      "id": "a728c4f6-864b-43ba-9b52-c411269100dc",
+      "name": "Telegram Trigger"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $json.message.document.file_id }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        48,
+        -960
+      ],
+      "id": "8ab4d657-1b38-4837-a26b-64f5d1d3cec4",
+      "name": "Download CV (Telegram)"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        272,
+        -960
+      ],
+      "id": "7984e9bc-48ba-45ce-9011-6ac55719500a",
+      "name": "Extract PDF (Telegram)"
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "q": "has:attachment filename:pdf"
+        },
+        "options": {
+          "downloadAttachments": true
+        }
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -144,
+        -656
+      ],
+      "id": "98e2c120-8216-4f34-906b-e44049001d91",
+      "name": "Gmail Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "attachment_0",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        80,
+        -656
+      ],
+      "id": "1578bf77-15a1-477b-9d93-0c9078694773",
+      "name": "Extract PDF (Gmail)"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hr-cv",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -128,
+        -336
+      ],
+      "id": "be83208d-1238-498d-bf52-a4d1d5bbf5ee",
+      "name": "Webhook"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "cv",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        128,
+        -336
+      ],
+      "id": "5e109008-a52c-491e-a22b-4be09fd105cc",
+      "name": "Extract PDF (Webhook)"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a253f024-a589-4d2b-acda-87a9d019cfb0",
+              "name": "title",
+              "value": "=Junior DevOps Engineer",
+              "type": "string"
+            },
+            {
+              "id": "3d844d00-30a2-473a-ab98-881a5d0e6654",
+              "name": "required_skills",
+              "value": "[\"Docker\", \"Kubernetes\", \"Linux\", \"Git\", \"CI/CD\"]",
+              "type": "array"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        816,
+        -736
+      ],
+      "id": "d64c353b-66f7-4fc4-830f-56ae0aab9178",
+      "name": "Vacancy"
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.text }}",
+        "schemaType": "fromJson",
+        "jsonSchemaExample": "{\n  \"first_name\": \"Іван\",\n  \"last_name\": \"Іваненко\",\n  \"email\": \"ivan@example.com\",\n  \"phone\": \"+351 900 000 000\",\n  \"position\": \"Junior DevOps Engineer\",\n  \"experience_years\": 1,\n  \"skills\": [\"Docker\", \"Linux\"],\n  \"languages\": [\"English B1\"],\n  \"education\": \"Bachelor in Computer Science\",\n  \"previous_companies\": [\"Company A\"]\n}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.2,
+      "position": [
+        1072,
+        -736
+      ],
+      "id": "03e4109a-5b4a-4c0f-8b44-b3669f692345",
+      "name": "Information Extractor"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1072,
+        -560
+      ],
+      "id": "28934ffd-7801-41bc-8206-7b115d0f9c9b",
+      "name": "OpenAI Chat Model (Extractor)"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Оціни кандидата на вакансію.\n\nВакансія: {{ $('Vacancy').item.json.title }}\nОбов'язкові навички: {{ $('Vacancy').item.json.required_skills.join(', ') }}\n\nДані кандидата:\n{{ JSON.stringify($json.output) }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "Ти досвідчений технічний рекрутер. Оцінюй кандидата тільки за переданими даними, нічого не вигадуй.\nmatched_skills — навички зі списку вакансії, які є у кандидата. Пиши їх точно так, як у вакансії. Схожі технології зараховуй: GitHub Actions або GitLab CI = CI/CD.\nВідсотки не рахуй, це зробить код."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1536,
+        -736
+      ],
+      "id": "cacac4ca-2a70-44a6-83ef-0733a8e5e3cb",
+      "name": "Evaluate Candidate"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1456,
+        -512
+      ],
+      "id": "037ba1bc-5313-4583-a5d4-a817bd210a3f",
+      "name": "OpenAI Chat Model (Agent)"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"matched_skills\": [\"Docker\", \"Linux\"],\n  \"strengths\": [\"2 роки досвіду\"],\n  \"risks\": [\"Немає Kubernetes\"],\n  \"summary\": \"2-3 речення про кандидата під цю вакансію\",\n  \"recommendation\": \"Запросити на інтерв'ю\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1776,
+        -528
+      ],
+      "id": "b60093df-e67c-4f9e-98e6-5c0d18eb6e32",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "jsCode": "const vacancy = $('Vacancy').item.json;\nconst candidate = $('Information Extractor').item.json.output; // дані з резюме\nconst evaluation = $json.output;                               // оцінка від AI Agent\n\n// Рахуємо тільки навички зі списку вакансії\nconst required = vacancy.required_skills;\nconst aiMatched = (evaluation.matched_skills ?? []).map(s => s.toLowerCase());\nconst matched = required.filter(skill => aiMatched.includes(skill.toLowerCase()));\nconst missing = required.filter(skill => !matched.includes(skill));\n\nconst score = Math.round((matched.length / required.length) * 100);\n\nreturn {\n  json: {\n    date: $now.toFormat('yyyy-MM-dd HH:mm'),\n    name: `${candidate.first_name} ${candidate.last_name}`.trim(),\n    email: candidate.email,\n    phone: candidate.phone,\n    vacancy: vacancy.title,\n    experience_years: candidate.experience_years,\n    score,\n    matched_skills: matched.join(', '),\n    missing_skills: missing.join(', '),\n    strengths: (evaluation.strengths ?? []).join('; '),\n    risks: (evaluation.risks ?? []).join('; '),\n    summary: evaluation.summary,\n    recommendation: evaluation.recommendation,\n  },\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1904,
+        -736
+      ],
+      "id": "48577921-2e96-4960-934c-e9abb8451f47",
+      "name": "Calculate Score"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "2a9d5543-5f99-419e-a86a-0461c62784fd",
+              "leftValue": "={{ $json.score }}",
+              "rightValue": 65,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2112,
+        -736
+      ],
+      "id": "63c05ef8-7ca5-4c37-b6d6-7d3b8d96b570",
+      "name": "Score ≥ 65"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Кандидати",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ $json.date }}",
+            "status": "=Новий",
+            "score": "={{ $json.score }}",
+            "name": "={{ $json.name }}",
+            "vacancy": "={{ $json.vacancy }}",
+            "email": "={{ $json.email }}",
+            "phone": "={{ $json.phone }}",
+            "experience_years": "={{ $json.experience_years }}",
+            "matched_skills": "={{ $json.matched_skills }}",
+            "missing_skills": "={{ $json.missing_skills }}",
+            "summary": "={{ $json.summary }}",
+            "strengths": "={{ $json.strengths }}",
+            "risks": "={{ $json.risks }}",
+            "recommendation": "={{ $json.recommendation }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "date", "displayName": "date", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "status", "displayName": "status", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "score", "displayName": "score", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "name", "displayName": "name", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "vacancy", "displayName": "vacancy", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "email", "displayName": "email", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "phone", "displayName": "phone", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "experience_years", "displayName": "experience_years", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "matched_skills", "displayName": "matched_skills", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "missing_skills", "displayName": "missing_skills", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "summary", "displayName": "summary", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "strengths", "displayName": "strengths", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "risks", "displayName": "risks", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "recommendation", "displayName": "recommendation", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2400,
+        -736
+      ],
+      "id": "271de099-ac1d-49d2-a749-6db0c7c64d16",
+      "name": "Save to Google Sheets"
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [[{ "node": "Download CV (Telegram)", "type": "main", "index": 0 }]]
+    },
+    "Download CV (Telegram)": {
+      "main": [[{ "node": "Extract PDF (Telegram)", "type": "main", "index": 0 }]]
+    },
+    "Extract PDF (Telegram)": {
+      "main": [[{ "node": "Vacancy", "type": "main", "index": 0 }]]
+    },
+    "Gmail Trigger": {
+      "main": [[{ "node": "Extract PDF (Gmail)", "type": "main", "index": 0 }]]
+    },
+    "Extract PDF (Gmail)": {
+      "main": [[{ "node": "Vacancy", "type": "main", "index": 0 }]]
+    },
+    "Webhook": {
+      "main": [[{ "node": "Extract PDF (Webhook)", "type": "main", "index": 0 }]]
+    },
+    "Extract PDF (Webhook)": {
+      "main": [[{ "node": "Vacancy", "type": "main", "index": 0 }]]
+    },
+    "Vacancy": {
+      "main": [[{ "node": "Information Extractor", "type": "main", "index": 0 }]]
+    },
+    "OpenAI Chat Model (Extractor)": {
+      "ai_languageModel": [[{ "node": "Information Extractor", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "Information Extractor": {
+      "main": [[{ "node": "Evaluate Candidate", "type": "main", "index": 0 }]]
+    },
+    "OpenAI Chat Model (Agent)": {
+      "ai_languageModel": [[{ "node": "Evaluate Candidate", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [[{ "node": "Evaluate Candidate", "type": "ai_outputParser", "index": 0 }]]
+    },
+    "Evaluate Candidate": {
+      "main": [[{ "node": "Calculate Score", "type": "main", "index": 0 }]]
+    },
+    "Calculate Score": {
+      "main": [[{ "node": "Score ≥ 65", "type": "main", "index": 0 }]]
+    },
+    "Score ≥ 65": {
+      "main": [
+        [{ "node": "Save to Google Sheets", "type": "main", "index": 0 }],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}
